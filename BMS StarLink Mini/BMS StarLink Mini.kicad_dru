@@ -1,4 +1,0 @@
-(version 1)
-(rule "Wire-solder pads: 1mm to other-net copper pours"
-  (condition "A.Type == 'Pad' && (A.memberOfFootprint('BT*') || A.memberOfFootprint('P*')) && B.Type == 'Zone'")
-  (constraint clearance (min 1.0mm)))
