@@ -1,0 +1,206 @@
+5S 26650 BMS (Starlink Mini / IP2368) - DESIGN REVIEW NOTES
+============================================================
+Written:        2026-11-24
+Board revision: Rev 2026-11-03 (files last changed 2026-11-04)
+Board checks:   0 DRC violations, 0 unconnected pads, schematic and PCB match
+
+This file records the review findings, the part changes that bring an
+already-manufactured board up to date, the design-file changes for a
+future revision, and where to buy the replacement parts.
+
+No design files were changed by this review.
+
+
+1. FIX BEFORE USE (both are part swaps - no new PCB needed)
+------------------------------------------------------------
+
+1.1  U1 - BM3451TJDC-T28A is obsolete
+     Fit BM3451TNDC-T28A (preferred) or BM3451UNDC-T28A instead.
+     Same pads, same orientation, no other parts change.
+
+       Version   Overcharge   Low-voltage   Balance
+                 cut-off      cut-off       starts
+       TJDC      4.250 V      2.5 V         4.190 V   (original, obsolete)
+       TNDC      4.250 V      2.8 V         4.190 V   (preferred)
+       UNDC      4.235 V      2.8 V         4.180 V   (also fine)
+
+     DO NOT use HEDC or BHDC versions (3.65-3.85 V cut-off, wrong for
+     Li-ion) or any -T20B version (different chip).
+
+1.2  D1 - change SMCJ24CA (two-way) to SMCJ24A (one-way)
+     Why: when the BMS cuts off a hard short, cable inductance pushes
+     PACK- upward. The two-way TVS does not clamp until PACK- is about
+     27-39 V above PACK+. That puts roughly 48-60 V across Q7 (rated
+     40 V) and about -30 V on Q6's gate (believed rated +/-20 V).
+     A one-way TVS clamps at about 1 V and holds Q7 to about 24 V.
+
+     *** ORIENTATION WARNING ***
+     The board was laid out for a two-way part, so the cathode mark on
+     the board is on the WRONG side for the SMCJ24A.
+       - Cathode (the end with the band) goes on the pad connected to
+         PACK+. D1 sits beside the PACK- wire pad; the PACK+ pad of
+         D1 is the one FARTHER from that wire pad.
+       - The other pad connects to PACK-.
+       - Fitted backwards, it shorts the pack when the output turns on.
+     Check BEFORE connecting cells, multimeter in diode mode:
+       - red on PACK-, black on PACK+  -> about 0.5-0.7 V
+       - red on PACK+, black on PACK-  -> open
+     If JLCPCB assembles the boards, leave D1 off the assembly order
+     and solder it by hand. If boards arrive with the SMCJ24CA fitted,
+     desolder it and fit the SMCJ24A.
+
+
+2. SAFETY GAPS TO COVER IN THE BUILD
+------------------------------------------------------------
+
+2.1  No protection against charging below 0 C
+     The BM3451 only has over-temperature cut-offs (about 45 C charge,
+     62 C discharge with R22 = 8.66k). Charging Li-ion below freezing
+     damages cells and can make them unsafe.
+     Fix: wire a thermistor from the IP2368 board's NTC pin to the
+     cells, and confirm its low-temperature cut-off in the IP2368
+     datasheet.
+
+2.2  TH1 does not touch a cell
+     It sits on the top of the board between the cell 3 and cell 4 wire
+     pads, so it reads board temperature.
+     Fix: leave the 0603 part off. Solder a leaded 10k NTC to the TH1
+     pads on two short wires and tape it to a middle cell. No polarity.
+
+2.3  Battery wires have no strain relief
+     The 2.5 mm2 wires solder to surface pads only; a tug can peel a
+     pad off.
+     Fix: after soldering, bond each wire to the board a few mm back
+     from the pad with neutral-cure silicone or epoxy.
+
+2.4  Cell insulation
+     If the cells rest against the board, put fish paper or Kapton
+     between them and the board.
+
+
+3. OPTIONAL PART CHANGES (same pads)
+------------------------------------------------------------
+
+3.1  R2: 10 Mohm -> 5.1 Mohm. Halves the charge-FET turn-off time
+     (about 0.15 s -> 0.08 s). Datasheet minimum is 5 Mohm.
+3.2  C7, C8, C9 (100 nF) and C10 (22 nF): use +/-5% parts instead of
+     +/-10%. Only improves the accuracy of the protection delays.
+
+
+4. TEST ON THE BENCH BEFORE TRUSTING THE PACK
+------------------------------------------------------------
+
+4.1  D1 orientation check (see 1.2) before connecting any cells.
+4.2  Wake-up after deep discharge. With R24 = 10 Mohm the BMS stays off
+     after a low-voltage cut-off until a charger is applied. Run one
+     cell down to the cut-off and confirm that plugging USB-C into the
+     IP2368 brings the pack back. Not confirmed from datasheets.
+4.3  Plug the Starlink / IP2368 into a live pack and confirm the
+     short-circuit protection does not trip on the inrush.
+4.4  There are no test points. Probe on component pads, e.g. the
+     cell-tap resistors R6, R9, R11, R15, R18.
+
+
+5. DESIGN-FILE CHANGES FOR A FUTURE BOARD REVISION
+------------------------------------------------------------
+(Not needed for boards already made.)
+
+5.1  D1: change the schematic symbol to a one-way TVS and turn the
+     footprint 180 degrees so the board marking is correct.
+5.2  U1: update value, part number and LCSC number to the chip bought.
+5.3  Add zip-tie holes or a slot beside each of the 12 wire pads.
+5.4  Add test points: five cell taps, CO, DO, GND, PACK-.
+5.5  TH1: replace the 0603 footprint with two wire pads for a leaded
+     thermistor.
+5.6  Update R2 and the C7-C10 tolerances in the schematic and BOM.
+5.7  Add the BM3451 symbol library to the project library table
+     (clears the one remaining ERC warning).
+5.8  After any change: re-run DRC and re-export the jlcpcb/ files.
+
+
+6. WHERE TO BUY THE REPLACEMENT PARTS
+------------------------------------------------------------
+Stock and prices change; check the page before ordering.
+Digi-Key Canada links are add-to-cart, no quote needed.
+
+D1   SMCJ24A, Littelfuse, one-way TVS, SMC package          qty 1 (+spares)
+     https://www.digikey.ca/en/products/detail/littelfuse-inc/SMCJ24A/762394
+
+TH1  Leaded NTC, 10k, 1%                                    qty 1 (+1 for IP2368)
+     Vishay NTCLE203E3103FB0A (beta 3977; shifts the cut-offs by
+     less than about 1 C compared with beta 3950)
+     https://www.digikey.ca/en/products/detail/vishay-beyschlag-draloric-bc-components/NTCLE203E3103FB0A/12810560
+     Alternative with beta 3950 (check tolerance on the page):
+     Ametherm PANE-103395-410
+     https://www.digikey.ca/en/products/detail/ametherm/PANE-103395-410/1765764
+
+R2   5.1 Mohm 1% 0603, Stackpole RMCF0603FT5M10             qty 1 (optional)
+     https://www.digikey.ca/en/products/detail/stackpole-electronics-inc/RMCF0603FT5M10/6266833
+
+C7, C8, C9   100 nF 50 V X7R 5% 0603, KEMET C0603C104J5RACTU   qty 3 (optional)
+     https://www.digikey.ca/en/products/detail/kemet/C0603C104J5RACTU/2199772
+
+C10  22 nF 50 V X7R 5% 0603, KEMET C0603C223J5RACTU         qty 1 (optional)
+     https://www.digikey.ca/en/products/detail/kemet/C0603C223J5RACTU/2200274
+
+U1   BM3451TNDC-T28A or BM3451UNDC-T28A (BYD)
+     NOT sold by Digi-Key or Mouser. No no-quote source from a major
+     distributor was found. Options, easiest first:
+
+     a) JLCPCB parts pre-order (if JLCPCB assembles the board).
+        BM3451UNDC-T28A, JLCPCB part C94597. Listed as usable in
+        assembly; buy through Parts Manager / global sourcing.
+        https://jlcpcb.com/partdetail/Byd-BM3451UNDCT28A/C94597
+
+     b) LCSC - search the part number and buy direct if in stock.
+        https://www.lcsc.com/search?q=BM3451
+
+     c) eBay, buy-it-now, BM3451TNDC-T28A (2 pcs listing).
+        https://www.ebay.com/itm/166880687906
+        Marketplace chips can be fake or mislabelled. Before trusting
+        them, bench-test with a variable supply per cell position:
+        charge cut-off at 4.25 V, low-voltage cut-off at 2.8 V.
+
+     Check the full part number on anything you buy: the letters must
+     be TNDC or UNDC and the suffix must be -T28A.
+
+Other materials (hardware store or Amazon): neutral-cure silicone or
+epoxy, Kapton tape or fish paper.
+
+
+7. CHECKED AND FINE
+------------------------------------------------------------
+- U1 wiring matches the BM3451 datasheet 5-cell circuit: cell filters
+  (1k / 1 uF), VCC (1k / 10 uF), SET floating, DOIN/COIN pull-ups.
+- Delays: overcharge 1 s, over-discharge 1 s, overcurrent-1 200 ms,
+  overcurrent-2 4.4 ms.
+- Trip currents with the 5 mohm shunt (R23): 20 A / 80 A / 160 A
+  discharge, 10 A charge. Normal load is about 7 A (0.25 W in R23).
+- Balancing: about 89 mA per cell, 0.37 W in 0.75 W resistors.
+- Fuse F1 (25 A): distributor listing gives 500 A at 72 V DC
+  interrupting rating.
+- Layout: Kelvin current sensing, tented vias, 2 oz copper, 1.6 mm
+  board, at least 0.3 mm between power copper areas.
+
+
+8. PROJECT FILES
+------------------------------------------------------------
+jlcpcb/BMS_StarLink_Mini_Gerbers_JLCPCB.zip   Gerbers + drill files
+jlcpcb/BMS_StarLink_Mini_BOM_JLCPCB.csv/.xlsx BOM with LCSC numbers
+jlcpcb/BMS_StarLink_Mini_CPL_JLCPCB.csv       placement file
+_backup_before_review_fixes_2026-10-24/       backups of every change
+
+NOTE: the BOM still lists the obsolete U1 (C5343512) and the two-way
+D1 (SMCJ24CA, C3040015). Change both on the JLCPCB order page, or
+leave them unplaced and fit them by hand.
+
+JLCPCB order settings: 2 oz outer copper, 1.6 mm, HASL lead-free or
+ENIG, assemble bottom side.
+
+
+9. REFERENCES
+------------------------------------------------------------
+BM3451 datasheet (BYD):
+  https://www.bydmicro.com/params/field/preview/PDF_PRODUCT_202304141002.pdf
+SiR638ADP (Vishay):
+  https://www.vishay.com/en/product/75297
